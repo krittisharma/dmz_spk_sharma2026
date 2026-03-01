@@ -4,9 +4,29 @@
 # FRB DM-z Analysis
 
 
-## Installation Requirements
+## Installation
 
-The only specific requirements for running these scripts are [BaryonForge](https://github.com/DhayaaAnbajagane/BaryonForge) and [CCL](https://ccl.readthedocs.io/en/latest/).
+**Python Dependencies**: Our codebase uses the standard Python scientific stack. The only specific requirements for running these scripts are [BaryonForge](https://github.com/DhayaaAnbajagane/BaryonForge) and [CCL](https://ccl.readthedocs.io/en/latest/). Installation procedures using environment files are described below.
+
+**OS Requirements**: The jupyter notebooks contained in this repository were run on `macOS: Sonoma 14.5` and the MCMC inference was conducted on `linux: Red Hat Enterprise Linux 9.3 (Plow)`. The jupyter notebooks require a standard computer with enough RAM to support the in-memory operations. The recommended resources for MCMC inference on linux include a single computer node with 12 CPU cores and 192 GB memory. In principle, MCMC pipeline is also suitable for running on a standard computer with longer run times without parallelization on an HPC.
+
+**Installation/Python Environment**: Upon cloning the git repository using `git clone https://github.com/krittisharma/dmz_spk_sharma2026`, the user can set up the environments for the two aforementioned OS, as follows. This process should not take more than 10 minutes.
+
+MacOS environment:
+
+`conda env create -f environment_mac.yml`
+
+`conda activate dmz_spk_sharma2026`
+
+`pip install git+https://github.com/DhayaaAnbajagane/BaryonForge.git`
+
+`pip install jax==0.4.23 jaxlib==0.4.23 ml_dtypes==0.2.0`
+
+Linux environment:
+
+`conda env create -f environment_linux.yml`
+
+**Demo**: The usage of our scripts is very well described in the jupyter notebooks, python scripts and slurm job examples, which reproduce all the figures and data presented in our work.
 
 
 ## Description
@@ -80,3 +100,7 @@ The only specific requirements for running these scripts are [BaryonForge](https
 - `spk_fgas_profile.ipynb`: (1) Visualizes and compares our FRB constraints on the suppression of matter power spectrum and halo gas mass fractions with literature. (2) Plots the MCMC parameter posterior constraints. (3) Visualizes the results from jackknife resampling.
 - `tensiometer_params.ipynb`: Performs CPC analysis.
 - `understanding_IMF_impact.ipynb`: Tests the impact of stellar IMF on suppression of matter power spectrum and halo gas mass fraction constraints.
+
+
+## License
+This project is covered under the Apache 2.0 License.
