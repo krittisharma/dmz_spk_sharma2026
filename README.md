@@ -1,9 +1,13 @@
 <img width="900" height="500" alt="image" src="https://github.com/user-attachments/assets/dab3a6ee-92f6-4731-81cf-17225c35698e" />
 
+
 # FRB DM-z Analysis
 
+
 ## Installation Requirements
+
 The only specific requirements for running these scripts are [BaryonForge](https://github.com/DhayaaAnbajagane/BaryonForge) and [CCL](https://ccl.readthedocs.io/en/latest/).
+
 
 ## Description
 
@@ -47,3 +51,20 @@ The only specific requirements for running these scripts are [BaryonForge](https
     - `sensitivity_currentFRBs_DMvar_MK.npy`: $\log M_{200}-k$ sensitivity of FRB DM-z analysis with current FRB sample.
     - `sensitivity_currentFRBs_DMvar_MZ.npy`: $\log M_{200}-z$ sensitivity of FRB DM-z analysis with current FRB sample.
 - `data/shm_relation` includes halo stellar mass fraction measurements from [Chiu+2018](https://ui.adsabs.harvard.edu/abs/2018MNRAS.478.3072C/abstract).
+
+
+**Emulators**
+- `BCEmu1_high_z`, `BCEmu7_high_z`, `BCEmu8_high_z`, `HMcode`
+- `DMvar_emulator_*.h5`: Pretrained emulator for predicting FRB DM variance using the `*` baryonic feedback model.
+- `SPk_emulator_*.h5`: Pretrained emulator for predicting the matter power spectrum suppression for `*` baryonic feedback model.
+- `param_grid_*.csv`: Parameter grid used to train the emulators, including ranges for feedback and cosmological parameters.
+- `pca_objects_*.pkl`: PCA decomposition objects for dimensionality reduction of the training outputs in the emulator pipeline.
+- `scaler_y_dm_*.joblib`: Scaling object to normalize DM and related outputs before training or prediction with the `*` emulator.
+
+
+**Scripts**
+- `mcmc_funcs.py`: Methods to model the cosmic DM contribution to FRBs using cosmological halo-model frameworks such as HMcode and BCEmu. It computes the mean and variance of the intergalactic DM distribution, incorporating baryonic feedback and diffuse gas fractions. The pipeline supports both exact calculations and machine-learning emulators to efficiently evaluate matter power spectrum modifications and gas statistics. It ultimately enables likelihood evaluation of FRB observations for cosmological and baryonic parameter inference.
+- `run_mcmc.py`: Performs MCMC parameter inference for FRB DM observations using cosmological baryonic feedback models such as HMcode and BCEmu. It provides a configurable pipeline to sample feedback and host-galaxy parameters under different modeling assumptions and priors. The sampler uses a two-stage burn-in and production strategy with emcee to efficiently explore parameter space and generate posterior chains. The resulting samples are then used to evaluate matter power spectrum modifications for cosmological analysis.
+- `sensitivity_funcs.py`: Builds cosmological kernels and halo-model power spectra relevant for FRB, galaxy, weak lensing, and tSZ observables. It provides modular classes to compute background cosmology, redshift distributions, and line-of-sight weighting functions for large-scale structure analyses. Using CCL and halo-model frameworks, it evaluates gas–matter and total matter power spectra across redshift. The outputs enable forward modeling of cross-correlations involving dispersion measure and large-scale structure tracers.
+- `slurmjob.sh`: SLURM batch script to run the MCMC pipeline `run_mcmc.py` on a computing cluster. It requests 12 CPU tasks and 192 GB of memory for up to 20 hours. The job environment activates a Conda environment `SPk` and executes the MCMC with the `BCEmu7_high_z` power spectrum model on an extended FRB sample, using 5 free parameters and a Chandra eta prior. Job notifications are sent to specified email address at start, end, and failure.
+
