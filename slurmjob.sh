@@ -14,4 +14,4 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate SPk
 
 cd $SLURM_SUBMIT_DIR
-python run_mcmc_vectorized.py --Pk_model BCEmu7_high_z --dir_path results --N_frb 100 --sample frb_sample --N_params 5 --eta_prior Chandra --sample_extended Yes --host_z_evol No --idx_to_drop 0
+python run_mcmc.py --Pk_model BCEmu7_high_z --dir_path results --N_frb 100 --sample frb_sample --N_params 5 --eta_prior Chandra --sample_extended Yes --host_z_evol No --idx_to_drop 0
