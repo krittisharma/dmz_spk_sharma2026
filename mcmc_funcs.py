@@ -203,7 +203,7 @@ def SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode = HMcode_mode):
         X = X.astype("float32").T
         pred_spk_pca = model_spk.predict(X, verbose=0)
         emulated_SPks = np.array(ipca_spk.inverse_transform(pred_spk_pca))
-        np.save('results/{}/spk_HMcode_posterior_samples_feedbackonly{}.npy'.format(Pk_model, os.environ["SUFFIX"]), np.array(emulated_SPks))
+        np.save('data/frb_results/spk_HMcode_posterior_samples_feedbackonly{}.npy'.format(os.environ["SUFFIX"]), np.array(emulated_SPks))
 
         def get_band(x, qlo=16, qhi=84):
             med = np.median(x, axis=0)
@@ -212,7 +212,7 @@ def SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode = HMcode_mode):
             return med, lo, hi
         
         ratio_spk_med, ratio_spk_lo, ratio_spk_hi = get_band(emulated_SPks)
-        np.save('results/{}/spk_HMcode{}.npy'.format(Pk_model, os.environ["SUFFIX"]), np.array([ratio_spk_lo, ratio_spk_med, ratio_spk_hi]))
+        np.save('data/frb_results/spk_HMcode{}.npy'.format(os.environ["SUFFIX"]), np.array([ratio_spk_lo, ratio_spk_med, ratio_spk_hi]))
 
     else:
         print("Unknown method!")
@@ -347,8 +347,7 @@ def SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
         pred_spk_pca = model_spk.predict(X, verbose=0)
         emulated_SPks = np.array(ipca_spk.inverse_transform(pred_spk_pca))
         print("SPk emulation done!")
-        np.save('results/{}/spk_BCEmu{}_posterior_samples_feedbackonly{}.npy'.format(
-            Pk_model,
+        np.save('data/frb_results/spk_BCEmu{}_posterior_samples_feedbackonly{}.npy'.format(
             N_params,
             os.environ["SUFFIX"]), np.array(emulated_SPks))
 
@@ -359,8 +358,7 @@ def SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
             return med, lo, hi
 
         ratio_spk_med, ratio_spk_lo, ratio_spk_hi = get_band(emulated_SPks)
-        np.save('results/{}/spk_BCEmu{}{}.npy'.format(
-            Pk_model,
+        np.save('data/frb_results/spk_BCEmu{}{}.npy'.format(
             N_params, 
             os.environ["SUFFIX"]), 
             np.array([ratio_spk_lo, ratio_spk_med, ratio_spk_hi]))

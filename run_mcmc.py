@@ -80,13 +80,12 @@ if args.eta_prior != "No":
     suffix += "_{}prior".format(args.eta_prior)
 if args.host_z_evol == "Yes":
     suffix += "_MDevolution"
-suffix += "_drop{}".format(args.idx_to_drop)
 os.environ["SUFFIX"] = suffix
 
 if "BCEmu" in args.Pk_model:
-    mcmc_file = '{}/{}/emcee_{}{}{}.pkl'.format(args.dir_path, args.Pk_model, args.Pk_model[:5], args.N_params, suffix)
+    mcmc_file = '{}/emcee_{}{}{}.pkl'.format(args.dir_path, args.Pk_model[:5], args.N_params, suffix)
 else:
-    mcmc_file = '{}/{}/emcee_{}{}.pkl'.format(args.dir_path, args.Pk_model, args.Pk_model[:6], suffix)
+    mcmc_file = '{}/emcee_{}{}.pkl'.format(args.dir_path, args.Pk_model[:6], suffix)
 print(mcmc_file)
 
 if args.Pk_model == "HMcode":
