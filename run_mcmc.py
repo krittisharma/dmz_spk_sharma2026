@@ -12,7 +12,7 @@ def parse_args():
                         help="Power spectrum model")
     parser.add_argument("--method", type=str, default="emulators", 
                         help="Method to use")
-    parser.add_argument("--N_frb", type=int, 
+    parser.add_argument("--N_frb", type=int, default=100,
                         help="Number of FRBs")
     parser.add_argument("--dir_path", type=str,
                         help="Directory path to use")

@@ -14,4 +14,4 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate dmz_spk_sharma2026
 
 cd $SLURM_SUBMIT_DIR
-python run_mcmc.py --Pk_model BCEmu7_high_z --dir_path data/frb_results --N_frb 100 --sample frb_sample --N_params 5 --eta_prior Chandra --sample_extended Yes --host_z_evol No
+python run_mcmc.py --Pk_model BCEmu7_high_z --dir_path data/frb_results --sample frb_sample --N_params 5 --eta_prior Chandra --sample_extended Yes --host_z_evol No
