@@ -3,6 +3,8 @@
 
 # FRB DM-z Analysis
 
+This repository hosts code and data associated with the publication Sharma et al. (2026) on the measurement of matter power spectrum suppression using fast radio bursts. It is a reproduction package of the DM-z analysis and figures in that work.
+
 
 ## Installation
 
@@ -102,5 +104,28 @@ Linux environment:
 - `understanding_IMF_impact.ipynb`: Tests the impact of stellar IMF on suppression of matter power spectrum and halo gas mass fraction constraints.
 
 
+## Example Usage
+
+Our MCMC pipeline is configured to run on an HPC and its runtime is approximately 5-10 hours, depending on the complexity of the model used. Following is an example usage of this script to generate baseline results presented in the main text of our work. 
+
+`python run_mcmc.py --Pk_model BCEmu7_high_z --dir_path data/frb_results --sample frb_sample --N_params 5 --eta_prior Chandra --sample_extended Yes --host_z_evol No`
+
+Here, 
+- `Pk_model` is the power spectrum model. Options include `HMcode`, `BCEmu1_high_z`, `BCEmu7_high_z` and `BCEmu8_high_z`.
+- `dir_path` is the path to FRB sample and path where results should be saved.
+- `sample` is the name of FRB sample file.
+- `N_params` is the number of free parameters to use in `BCEmu` model. Options include 1/4/5/6/7.
+- `eta_prior` is the choice of stellar-to-halo mass relation prior. Options include `Chandra` and `SPT`.
+- `sample_extended` is the flag for FRB data subset to use. Options include `Yes` for extended sample and `No` for fiducial sample.
+- `host_z_evol` is the flag to include redshift evolution of host DM contribution consistent with cosmic star-formation rate history of the Universe.
+
+This script should generate the following files: `data/frb_results/emcee_BCEmu5_extended_Chandraprior.pkl`, `data/frb_results/spk_BCEmu5_extended_Chandraprior.npy` and `data/frb_results/spk_BCEmu5_posterior_samples_feedbackonly_extended_Chandraprior.npy`. Using these, `spk_fgas_profile.ipynb` notebook presents the comparison with various literature constraints and produces the following plots:
+
+<img width="2723" height="916" alt="image" src="https://github.com/user-attachments/assets/4ae90cac-3035-41c1-be98-364a0da14bc7" />
+
+<img width="2804" height="1012" alt="image" src="https://github.com/user-attachments/assets/058df25c-1c83-4431-b8c8-8b05bed7f183" />
+
+
 ## License
+
 This project is covered under the Apache 2.0 License.
