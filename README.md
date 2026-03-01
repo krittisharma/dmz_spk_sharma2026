@@ -39,7 +39,7 @@ The only specific requirements for running these scripts are [BaryonForge](https
     - DES-Y3 x ACT compton y-map covariance matrix (`DESxACT_gty_xip_xim_DV_ilc_SZ_yy_maskedPS.pk`) adapted from [Pandey+2025](https://ui.adsabs.harvard.edu/abs/2025arXiv250607432P/abstract)
     - `YM_sensitivity.npy`: $\log M_{200}-z$ sensitivity of tSZ Y-M relation from [Dalal+2025](https://ui.adsabs.harvard.edu/abs/2025arXiv250704476D/abstract)
     - `power_spectra_object_currentFRBs_1h.npy` and `power_spectra_object_DSA2000FRBs_1h.npy`: Precomputed data vectors for DM-z sensitivity calculation of current FRB sample and expected sample from DSA.
-    - `power_spectra_object_bins*_1h.npy`: Precomputed data vectors for $\xi^_\pm}$ and $\xi^{\gamma y}$ sensitivity calculation.
+    - `power_spectra_object_bins*_1h.npy`: Precomputed data vectors for $\xi_\pm}$ and $\xi^{\gamma y}$ sensitivity calculation.
     - `sensitivity_DES_ACT_xi_MK.npy`: $\log M_{200}-k$ sensitivity of $\xi^{\gamma y}$ from DES-Y3 x ACT compton y-map cross-correlation.
     - `sensitivity_DES_ACT_xi_MZ.npy`: $\log M_{200}-z$ sensitivity of $\xi^{\gamma y}$ from DES-Y3 x ACT compton y-map cross-correlation.
     - `sensitivity_DES_xi_pm_MK.npy`: $\log M_{200}-k$ sensitivity of $\xi_\pm$ from DES-Y3.
