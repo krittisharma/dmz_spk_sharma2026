@@ -142,7 +142,7 @@ def rho_H2_rho_HI(z):
     https://ui.adsabs.harvard.edu/abs/2025A%26A...695A.163B/abstract
     https://ui.adsabs.harvard.edu/abs/2020ARA%26A..58..363P/abstract
     """
-    df = pd.read_csv("data/f_diffuse/rhoH2_rhoHI.csv")
+    df = pd.read_csv("/Users/krittisharma/Desktop/research/frb_cosmo/dmz_spk/dmz_spk_sharma2026/data/f_diffuse/rhoH2_rhoHI.csv")
     return np.interp(z, df.z, df.rhoH2_rhoHI)
 
 
