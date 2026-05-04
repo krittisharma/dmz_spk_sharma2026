@@ -28,6 +28,10 @@ Linux environment:
 
 `conda env create -f environment_linux.yml`
 
+`conda activate dmz_spk_sharma2026`
+
+`pip install git+https://github.com/DhayaaAnbajagane/BaryonForge.git`
+
 **Demo**: The usage of our scripts is very well described in the jupyter notebooks, python scripts and slurm job examples, which reproduce all the figures and data presented in our work.
 
 
