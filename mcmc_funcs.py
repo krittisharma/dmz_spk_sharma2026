@@ -80,6 +80,47 @@ age_interp = RegularGridInterpolator(
 # Functions to compute f_diffuse(z)
 
 def rho_Mstar(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, Pk_model, z, mode = HMcode_mode):
+    """
+    Computes the mean stellar mass density (rho_Mstar) and total baryon density (rho_baryon)
+    at redshift(s) z, for an array of walkers with different cosmological and feedback parameters.
+
+    For each walker, the stellar mass density is computed by integrating the stellar profile
+    (central + satellite stars) over halo mass using the halo model framework, with gas profiles
+    constructed from either the HMcode (Mead+2020) or BCEMU (Schneider+2019) prescription
+    depending on Pk_model. The computation across walkers is parallelized using joblib.
+
+    Parameters
+    ----------
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in km/s/Mpc for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 (RMS amplitude of linear matter fluctuations) for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker. 
+        For HMcode, expects key "Tagn".
+        For BCEmu, expects keys: "theta_ej", "log_Mc", "mu_beta", "eta", "eta_delta",
+        "tau", "A", "gamma", "delta".
+    Pk_model : str
+        Power spectrum model identifier. Must be either "HMcode" or contain "BCEmu".
+    z : array_like
+        Redshift(s) at which to evaluate the stellar and baryon mass densities.
+    mode : str, optional
+        HMcode mode string passed to BaryonForge profile constructors.
+        Defaults to HMcode_mode (module-level constant).
+
+    Returns
+    -------
+    rho_Mstar_arr : np.ndarray, shape (nwalkers, len(z))
+        Mean stellar mass density (central + satellite galaxies) in comoving units,
+        integrated over the halo mass function, for each walker and redshift.
+    rho_baryon_arr : np.ndarray, shape (nwalkers, len(z))
+        Total comoving baryon mass density for each walker and redshift,
+        computed as rho_matter * (Omega_b / Omega_m).
+    """
     def rho_Mstar_element(H0, Ob0, Om0, s8, feedback_params, Pk_model, z, HMcode_mode):
         a = 1/(1+z)
         h = H0/(100*1e5/Mpc)
@@ -132,21 +173,95 @@ def rho_Mstar(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, Pk_model, 
 
 def rho_H2(z):
     """
-    https://ui.adsabs.harvard.edu/abs/2025A%26A...695A.163B/abstract
+    Computes the mean molecular hydrogen (H2) mass density as a function of redshift,
+    following the fitting formula of Boylan-Kolchin et al. (2025, A&A, 695, A163).
+    See: https://ui.adsabs.harvard.edu/abs/2025A%26A...695A.163B/abstract
+
+    The redshift evolution is modeled as a double power-law with a peak at z ~ 2,
+    consistent with the observed cosmic star formation history.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s) at which to evaluate the H2 mass density.
+
+    Returns
+    -------
+    rho_H2 : float or np.ndarray
+        Molecular hydrogen mass density in units of M_sun / Mpc^3 at the given redshift(s).
     """
     return 5.3e6*((1+z)**3.6)/(1+((1+z)/2.1)**5.9)
 
-
 def rho_H2_rho_HI(z):
     """
-    https://ui.adsabs.harvard.edu/abs/2025A%26A...695A.163B/abstract
-    https://ui.adsabs.harvard.edu/abs/2020ARA%26A..58..363P/abstract
+    Returns the ratio of molecular hydrogen (H2) to neutral hydrogen (HI) mass densities
+    as a function of redshift, by interpolating over a precomputed table.
+
+    The tabulated rho_H2/rho_HI values are drawn from:
+    - Boylan-Kolchin et al. (2025, A&A, 695, A163) for H2:
+      https://ui.adsabs.harvard.edu/abs/2025A%26A...695A.163B/abstract
+    - Peroux & Howk (2020, ARA&A, 58, 363) for HI:
+      https://ui.adsabs.harvard.edu/abs/2020ARA%26A..58..363P/abstract
+
+    This ratio is used in the computation of f_diffuse to subtract the cold gas
+    (H2 + HI) contribution from the total baryon budget, alongside the stellar
+    mass density.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s) at which to evaluate the H2/HI density ratio.
+
+    Returns
+    -------
+    rho_H2_rho_HI : float or np.ndarray
+        The ratio rho_H2 / rho_HI at the given redshift(s), interpolated from
+        the precomputed data table.
     """
     df = pd.read_csv("/Users/krittisharma/Desktop/research/frb_cosmo/dmz_spk/dmz_spk_sharma2026/data/f_diffuse/rhoH2_rhoHI.csv")
     return np.interp(z, df.z, df.rhoH2_rhoHI)
 
 
 def f_diffuse(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, Pk_model, z, mode = HMcode_mode):
+    """
+    Computes the diffuse baryon fraction f_diffuse(z) for each walker at redshift(s) z.
+
+    The diffuse baryon fraction is defined as the fraction of baryons not locked in
+    stellar mass or cold gas (molecular H2 + neutral HI), i.e.:
+
+        f_diffuse(z) = 1 - (rho_Mstar + rho_H2 + rho_HI) / rho_baryon
+
+    This quantity enters directly into the computation of the mean cosmic dispersion
+    measure <DM_cosmic(z)> (equation 2 of the paper), where it modulates the
+    contribution of diffuse ionized gas along the line of sight. It encodes the
+    fraction of baryons available to contribute to free electrons in the IGM and
+    intervening halos.
+
+    Parameters
+    ----------
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in km/s/Mpc for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker.
+    Pk_model : str
+        Power spectrum model identifier. Must be either "HMcode" or contain "BCEmu".
+    z : array_like
+        Redshift(s) at which to evaluate f_diffuse.
+    mode : str, optional
+        HMcode mode string passed to BaryonForge profile constructors.
+        Defaults to HMcode_mode (module-level constant).
+
+    Returns
+    -------
+    f_d_arr : np.ndarray, shape (nwalkers, len(z))
+        Diffuse baryon fraction for each walker and redshift.
+    """
     rho_Mstar_arr, rho_baryons_arr = rho_Mstar(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, Pk_model, z, HMcode_mode)
     rho_H2_ = rho_H2(z)
     rho_HI = rho_H2_/rho_H2_rho_HI(z)
@@ -155,6 +270,41 @@ def f_diffuse(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, Pk_model, 
 
 
 def DM_cosmic_mean(Om0_arr, Ob0_arr, H0_arr, s8_arr, feedback_params_list, Pk_model, z):
+    """
+    Computes the mean cosmic dispersion measure <DM_cosmic(z)> for each walker
+    at the observed FRB redshift(s) z, following equation 2 of the paper:
+
+        <DM_cosmic(z_s)> = integral_0^{z_s} [ 3*c*chi_e*Omega_b*H0 / (8*pi*G*m_p) ]
+                           * f_diffuse(z) * (1+z) / sqrt(Omega_m*(1+z)^3 + Omega_Lambda) dz
+
+    The diffuse baryon fraction f_diffuse(z) is first evaluated on a coarse redshift
+    grid and then interpolated onto a finer grid before numerical integration using
+    the cumulative trapezoid rule. The result is interpolated to the observed FRB
+    redshifts z.
+
+    Parameters
+    ----------
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in cm/s/Mpc (pre-scaled by H0 * 1e5/Mpc) for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker.
+    Pk_model : str
+        Power spectrum model identifier. Must be either "HMcode" or contain "BCEmu".
+    z : array_like, shape (nz,)
+        Observed FRB redshift(s) at which to evaluate <DM_cosmic>.
+
+    Returns
+    -------
+    DM_mean : np.ndarray, shape (nwalkers, nz)
+        Mean cosmic dispersion measure <DM_cosmic(z)> in units of pc/cm^3,
+        for each walker and observed redshift.
+    """
     nwalkers = len(H0_arr)
     nz = len(z)
     z_prime = np.linspace(0, np.max(z), 50)
@@ -174,6 +324,51 @@ def DM_cosmic_mean(Om0_arr, Ob0_arr, H0_arr, s8_arr, feedback_params_list, Pk_mo
 
 
 def SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode = HMcode_mode):
+    Here's the docstring for SPk_HMcode:
+pythondef SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode=HMcode_mode):
+    """
+    Computes the matter power spectrum suppression ratio P_hydro(k) / P_gravity(k) at z=0
+    using the HMcode (Mead+2020) baryonic feedback prescription, for a single set of
+    cosmological and feedback parameters.
+
+    The suppression ratio is defined as the ratio of the halo model power spectrum
+    computed with baryonic feedback (dark matter + baryons, DMB) to the gravity-only
+    (dark matter only, DMO) power spectrum. The AGN feedback strength is controlled
+    by the single parameter Tagn, which is mapped to the full set of HMcode profile
+    parameters via BaryonForge.
+
+    Two computation modes are supported, selected via the module-level environment
+    variable METHOD:
+    - "exact"     : Directly computes the halo model power spectra using BaryonForge
+                    and pyccl, with high-precision FFTLog settings.
+    - "emulators" : Uses a pre-trained neural network emulator to predict the suppression
+                    ratio from the input parameters, and saves the posterior samples
+                    and summary statistics (median, 16th, 84th percentiles) to disk.
+
+    Parameters
+    ----------
+    H0 : float
+        Hubble constant in km/s/Mpc.
+    Ob0 : float
+        Baryon density parameter Omega_b.
+    Om0 : float
+        Total matter density parameter Omega_m.
+    s8 : float
+        sigma_8 (RMS amplitude of linear matter fluctuations).
+    Tagn : float
+        AGN heating temperature parameter controlling the strength of baryonic
+        feedback in the HMcode prescription. Prior range: [7.6, 8.0].
+    mode : str, optional
+        HMcode mode string passed to BaryonForge profile constructors.
+        Defaults to HMcode_mode (module-level constant).
+
+    Returns
+    -------
+    SPk : np.ndarray, shape (len(k_fields),)
+        Ratio P_DMB(k) / P_DMO(k) evaluated at the module-level k_fields array,
+        returned only when method == "exact". When method == "emulators", results
+        are saved to disk and nothing is returned.
+    """
     if method == "exact":
         k_fields = np.geomspace(1e-4, 1e2, 1000)
         fft_precision = dict(padding_lo_fftlog = 1e-8, padding_hi_fftlog = 1e8, n_per_decade = 500)
@@ -220,6 +415,50 @@ def SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode = HMcode_mode):
 
 
 def Pgas_HMcode(H0, Ob0, Om0, s8, Tagn, z_arr, mode = HMcode_mode):
+    """
+    Computes the gas power spectrum Pgas(k, z) at each redshift in z_arr using the
+    HMcode (Mead+2020) baryonic feedback prescription, for a single set of cosmological
+    and feedback parameters.
+
+    The gas profile is constructed using BaryonForge's Mead20.Gas profile, normalized
+    by the mean baryon density (rho_matter * Omega_b / Omega_m) at each redshift. The
+    halo model power spectrum is then computed using pyccl's halomod_power_spectrum
+    with the Tinker+2008 mass function and Tinker+2010 halo bias, integrated over
+    halo masses in the range 10^9 -- 10^16 M_sun. High-precision FFTLog settings are
+    applied to ensure accurate small-scale power spectrum computation.
+
+    Pgas(k, z) enters the computation of the DM variance sigma^2[DM_cosmic(z_s)]
+    through equation 3 of the paper, where it is integrated over k and z with the
+    DM radial kernel W_DM(chi) to yield the sightline-to-sightline variance in
+    the cosmic dispersion measure.
+
+    Parameters
+    ----------
+    H0 : float
+        Hubble constant in km/s/Mpc.
+    Ob0 : float
+        Baryon density parameter Omega_b.
+    Om0 : float
+        Total matter density parameter Omega_m.
+    s8 : float
+        sigma_8 (RMS amplitude of linear matter fluctuations).
+    Tagn : float
+        AGN heating temperature parameter controlling the strength of baryonic
+        feedback in the HMcode prescription. Prior range: [7.6, 8.0].
+    z_arr : array_like
+        Redshifts at which to evaluate the gas power spectrum.
+    mode : str, optional
+        HMcode mode string passed to BaryonForge profile constructors.
+        Defaults to HMcode_mode (module-level constant).
+
+    Returns
+    -------
+    k_fields : np.ndarray, shape (1000,)
+        Wavenumbers in units of h/Mpc at which the power spectrum is evaluated,
+        log-spaced between 1e-4 and 1e2 h/Mpc.
+    P_GAS : list of np.ndarray, length len(z_arr)
+        Gas power spectrum Pgas(k) at each redshift in z_arr, in units of (Mpc/h)^3.
+    """
     fft_precision = dict(padding_lo_fftlog = 1e-8, padding_hi_fftlog = 1e8, n_per_decade = 500)
     cosmo = ccl.Cosmology(Omega_c = Om0-Ob0, 
                           Omega_b = Ob0, 
@@ -242,6 +481,72 @@ def Pgas_HMcode(H0, Ob0, Om0, s8, Tagn, z_arr, mode = HMcode_mode):
 
 
 def SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
+    Here's the docstring for SPk_BCEmu:
+pythondef SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
+    """
+    Computes the matter power spectrum suppression ratio P_hydro(k) / P_gravity(k) at z=0
+    using the flexible analytical BCEMU (Schneider+2019) baryonic feedback prescription,
+    for a single set of cosmological and feedback parameters.
+
+    The suppression ratio is defined as the ratio of the halo model power spectrum
+    computed with baryonic feedback (dark matter + baryons, DMB) to the gravity-only
+    (dark matter only, DMO) power spectrum. The BCEMU prescription models gas profiles
+    analytically with free parameters that are not tied to any specific subgrid feedback
+    implementation, making it more flexible than HMcode. The full set of baryonic
+    components (dark matter, gas, stars, collisionless matter) are modeled separately
+    and combined into the total DMB profile. A truncation at epsilon_trunc * R200c is
+    applied to both DMO and DMB profiles to account for gas ejection beyond the halo
+    boundary. Mass-to-total-mass corrections (Mdelta_to_Mtot) are applied separately
+    to the DMO and DMB profiles to ensure consistent halo mass definitions.
+
+    Supports optional extensions to the standard LCDM cosmology, including massive
+    neutrinos (m_nu), and a time-varying dark energy equation of state (w0, wa).
+
+    Two computation modes are supported, selected via the module-level environment
+    variable METHOD:
+    - "exact"     : Directly computes the halo model power spectra using BaryonForge
+                    and pyccl, with high-precision FFTLog settings.
+    - "emulators" : Uses a pre-trained neural network emulator to predict the suppression
+                    ratio from the input parameters (supporting BCEmu1, BCEmu7, BCEmu8
+                    model variants), and saves the posterior samples and summary statistics
+                    (median, 16th, 84th percentiles) to disk.
+
+    Parameters
+    ----------
+    H0 : float
+        Hubble constant in km/s/Mpc.
+    Ob0 : float
+        Baryon density parameter Omega_b.
+    Om0 : float
+        Total matter density parameter Omega_m.
+    s8 : float
+        sigma_8 (RMS amplitude of linear matter fluctuations).
+    feedback_params : dict
+        Dictionary of BCEMU feedback parameters. Expected keys:
+        - "log_Mc"    : log10 of characteristic halo mass scale below which gas
+                        profile becomes shallower than the NFW profile.
+        - "theta_ej"  : Maximum radius of gas ejection in units of R200c.
+        - "mu_beta"   : Mass dependence of the inner gas profile slope beta.
+        - "eta"       : High-mass end slope of the stellar-to-halo mass relation.
+        - "eta_delta" : Partition of stellar content between central and satellite galaxies.
+        - "tau"       : Low-mass end slope of the stellar-to-halo mass relation.
+        - "A"         : Normalization of the stellar-to-halo mass relation.
+        - "gamma"     : Outer slope of the bound gas profile.
+        - "delta"     : Outer slope of the bound gas profile beyond truncation.
+    m_nu : float, optional
+        Sum of neutrino masses in eV. Default is 0 (massless neutrinos).
+    w0 : float, optional
+        Dark energy equation-of-state parameter at z=0. Default is -1 (Lambda).
+    wa : float, optional
+        Time derivative of the dark energy equation-of-state parameter. Default is 0.
+
+    Returns
+    -------
+    SPk : np.ndarray, shape (len(k_fields),)
+        Ratio P_DMB(k) / P_DMO(k) evaluated at the module-level k_fields array,
+        returned only when method == "exact". When method == "emulators", results
+        are saved to disk and nothing is returned.
+    """
     k_fields = np.geomspace(1e-4, 1e2, 1000)
     if method == "exact":
         fft_precision = dict(padding_lo_fftlog = 1e-8, padding_hi_fftlog = 1e8, n_per_decade = 500)
@@ -368,6 +673,60 @@ def SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
     
 
 def Pgas_BCEmu(H0, Ob0, Om0, s8, feedback_params, z_arr):
+    """
+    Computes the gas power spectrum Pgas(k, z) at each redshift in z_arr using the
+    flexible analytical BCEMU (Schneider+2019) baryonic feedback prescription, for
+    a single set of cosmological and feedback parameters.
+
+    The gas profile is constructed using BaryonForge's Schneider19.Gas profile,
+    normalized by the mean baryon density (rho_matter * Omega_b / Omega_m) at each
+    redshift, and truncated at epsilon_trunc * R200c to account for gas ejection
+    beyond the halo boundary. A mass-to-total-mass correction (Mdelta_to_Mtot) is
+    applied to ensure consistent halo mass definitions when computing the halo model
+    power spectrum. The halo model power spectrum is then computed using pyccl's
+    halomod_power_spectrum with the Tinker+2008 mass function and Tinker+2010 halo
+    bias, integrated over halo masses in the range 10^9 -- 10^16 M_sun. High-precision
+    FFTLog settings are applied to ensure accurate small-scale power spectrum computation.
+
+    Pgas(k, z) enters the computation of the DM variance sigma^2[DM_cosmic(z_s)]
+    through equation 3 of the paper, where it is integrated over k and z with the
+    DM radial kernel W_DM(chi) to yield the sightline-to-sightline variance in
+    the cosmic dispersion measure.
+
+    Parameters
+    ----------
+    H0 : float
+        Hubble constant in km/s/Mpc.
+    Ob0 : float
+        Baryon density parameter Omega_b.
+    Om0 : float
+        Total matter density parameter Omega_m.
+    s8 : float
+        sigma_8 (RMS amplitude of linear matter fluctuations).
+    feedback_params : dict
+        Dictionary of BCEMU feedback parameters. Expected keys:
+        - "log_Mc"    : log10 of characteristic halo mass scale below which gas
+                        profile becomes shallower than the NFW profile.
+        - "theta_ej"  : Maximum radius of gas ejection in units of R200c.
+        - "mu_beta"   : Mass dependence of the inner gas profile slope beta.
+        - "eta"       : High-mass end slope of the stellar-to-halo mass relation.
+        - "eta_delta" : Partition of stellar content between central and satellite galaxies.
+        - "tau"       : Low-mass end slope of the stellar-to-halo mass relation.
+        - "A"         : Normalization of the stellar-to-halo mass relation.
+        - "gamma"     : Outer slope of the bound gas profile.
+        - "delta"     : Outer slope of the bound gas profile beyond truncation.
+    z_arr : array_like
+        Redshifts at which to evaluate the gas power spectrum.
+
+    Returns
+    -------
+    k_fields : np.ndarray, shape (1000,)
+        Wavenumbers in units of h/Mpc at which the power spectrum is evaluated,
+        log-spaced between 1e-4 and 1e2 h/Mpc.
+    P_GAS : list of np.ndarray, length len(z_arr)
+        Gas power spectrum Pgas(k) at each redshift in z_arr, in units of (Mpc/h)^3,
+        normalized to the mean baryon density.
+    """
     fft_precision = dict(padding_lo_fftlog = 1e-8, padding_hi_fftlog = 1e8, n_per_decade = 500)
     h = H0/(1e5/Mpc)/100
     
@@ -415,6 +774,58 @@ else:
 
 
 def get_DM_variance(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, z_obs, Pk_model):
+    """
+    Computes the standard deviation of the cosmic dispersion measure,
+    sigma[DM_cosmic(z_s)], for each walker at the observed FRB redshift(s) z_obs,
+    following equation 3 of the paper:
+
+        sigma^2[DM_cosmic(z_s)] = integral_0^{chi_s} dchi * W_DM^2(chi)
+                                  * integral_0^inf dk * k / (2*pi) * Pgas(k, z(chi))
+
+    where W_DM(chi) is the DM radial kernel (equation 2), and Pgas(k, z) is the
+    feedback-dependent gas power spectrum. The sightline-to-sightline variance in
+    DM_cosmic arises from fluctuations in the ionized gas distribution within
+    intervening collapsed structures, and is directly sensitive to the strength
+    of baryonic feedback through Pgas(k, z).
+
+    Two computation modes are supported, selected via the module-level environment
+    variable METHOD:
+    - "emulators" : Uses a pre-trained neural network emulator to predict
+                    sigma[DM_cosmic(z)] as a function of redshift for each walker,
+                    supporting HMcode, BCEmu1, BCEmu7, and BCEmu8 model variants.
+                    The emulated DM variance is interpolated to the observed FRB
+                    redshifts z_obs.
+    - "exact"     : Directly computes sigma[DM_cosmic(z_s)] by numerically integrating
+                    the gas power spectrum Pgas(k, z) over k using Simpson's rule,
+                    and then integrating over redshift using the cumulative trapezoid
+                    rule with the appropriate DM radial kernel weighting. The
+                    redshift integration grid is set by the module-level zbins array
+                    (0 to 1 for standard runs, 0 to 5 for high-z runs).
+
+    Parameters
+    ----------
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in km/s/Mpc for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker.
+    z_obs : array_like, shape (nz,)
+        Observed FRB redshift(s) at which to evaluate sigma[DM_cosmic].
+    Pk_model : str
+        Power spectrum model identifier. Must be "HMcode", "BCEmu1", "BCEmu7",
+        or "BCEmu8".
+
+    Returns
+    -------
+    DM_var_out : np.ndarray, shape (nwalkers, nz)
+        Standard deviation sigma[DM_cosmic(z_s)] in units of pc/cm^3,
+        for each walker and observed FRB redshift.
+    """
     nwalkers = len(H0_arr)
     z_obs = np.atleast_1d(z_obs)
     nz = len(z_obs)
@@ -498,8 +909,54 @@ def get_DM_variance(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, z_ob
 
 
 def p_cosmic(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, z_obs, DM_obs, Pk_model):
+    """
+    Computes the conditional probability distribution p(DM_cosmic | z_s) of the
+    cosmic dispersion measure for each walker, at each observed FRB redshift and
+    DM value, following equation 1 of the paper.
+
+    The cosmic DM distribution is modeled as a log-normal, parameterized by its
+    first two moments: the mean <DM_cosmic(z_s)> (equation 2) and the variance
+    sigma^2[DM_cosmic(z_s)] (equation 3). The log-normal parameters mu_log and
+    sigma_log are computed from these moments as:
+
+        mu_log    = log( <DM_cosmic>^2 / sqrt(<DM_cosmic>^2 + sigma^2) )
+        sigma_log = sqrt( log(1 + sigma^2 / <DM_cosmic>^2) )
+
+    The mean and variance are computed by calls to DM_cosmic_mean and
+    get_DM_variance respectively, and depend on the feedback-dependent gas power
+    spectrum Pgas(k, z) through sigma^2[DM_cosmic]. The resulting PDF is sensitive
+    to the efficiency of gas expulsion from halos through its variance, as described
+    in the paper.
+
+    Parameters
+    ----------
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in km/s/Mpc for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker.
+    z_obs : array_like, shape (nz,)
+        Observed FRB redshift(s) at which to evaluate p(DM_cosmic | z_s).
+    DM_obs : array_like, shape (nz, n_DM_host)
+        Cosmic DM values at which to evaluate the PDF, for each FRB redshift.
+        These are typically the DM_cosmic values obtained by subtracting the host
+        and Milky Way halo contributions from the observed extragalactic DM.
+    Pk_model : str
+        Power spectrum model identifier. Must be "HMcode", "BCEmu1", "BCEmu7",
+        or "BCEmu8".
+
+    Returns
+    -------
+    pdf : np.ndarray, shape (nwalkers, nz, n_DM_host)
+        Log-normal probability density p(DM_cosmic | z_s) evaluated at each
+        DM_obs value, for each walker and observed FRB redshift.
+    """
     H0_arr = np.atleast_1d(H0_arr)
-    nwalkers = len(H0_arr)
     z_obs = np.atleast_1d(z_obs)
     DM_obs = np.atleast_1d(DM_obs)
 
@@ -521,10 +978,89 @@ def p_cosmic(H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list, z_obs, DM_o
     return pdf
 
 def madau_dickinson_factor(z):
+    """
+    Computes the Madau-Dickinson star formation rate (SFR) factor as a function
+    of redshift, following the fitting formula of Madau & Dickinson (2014).
+
+    This factor describes the redshift evolution of the cosmic star formation rate
+    density, and is used to optionally model a redshift evolution of the FRB host
+    galaxy DM contribution, DMhost(z). If FRBs preferentially trace star-forming
+    galaxies, DMhost is expected to evolve with redshift in a manner tracking the
+    cosmic SFR history. The factor is normalized to its z=0 value in likelihood_frb
+    to yield a multiplicative correction to the median host DM.
+
+    Parameters
+    ----------
+    z : float or array_like
+        Redshift(s) at which to evaluate the Madau-Dickinson SFR factor.
+
+    Returns
+    -------
+    sfr_factor : float or np.ndarray
+        The Madau-Dickinson SFR factor (1+z)^2.7 / (1 + ((1+z)/2.9)^5.6)
+        at the given redshift(s), unnormalized.
+    """
     return (1 + z)**2.7 / (1 + ((1 + z)/2.9)**5.6)
 
 def likelihood_frb(DM_obs, z_obs, H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_params_list,
                    mu_host_arr, sigma_host_arr, Pk_model, n_host_bins=400): 
+    """
+    Computes the total log-likelihood of the observed FRB extragalactic dispersion
+    measures given the model parameters, for each walker simultaneously.
+
+    For each FRB, the likelihood is computed by marginalizing over the unknown host
+    galaxy DM contribution, DMhost, following equation 1 of the paper:
+
+        p(DM_exgal | z_s) = integral_0^{DM_exgal} p(DM_cosmic | z_s) * p(DMhost | z_s) dDMhost
+
+    where DM_cosmic = DM_exgal - DMhost - dm_halos, with dm_halos = 50 pc/cm^3
+    accounting for the Milky Way halo contribution. The host DM distribution
+    p(DMhost | z_s) is modeled as a log-normal in the rest frame, converted to
+    the observer frame by a factor of (1 + z_s). The cosmic DM distribution
+    p(DM_cosmic | z_s) is evaluated via p_cosmic. The marginalization integral
+    over DMhost is performed numerically using a per-FRB adaptive grid of n_host_bins
+    bins spanning [1e-2, DM_exgal - dm_halos].
+
+    Optionally, a redshift evolution of the median host DM is applied following
+    the Madau-Dickinson star formation rate history, controlled by the environment
+    variable HOST_Z_EVOLUTION.
+
+    Parameters
+    ----------
+    DM_obs : array_like, shape (n_FRB,)
+        Observed extragalactic dispersion measures DMexgal in pc/cm^3,
+        after subtracting the Milky Way ISM contribution.
+    z_obs : array_like, shape (n_FRB,)
+        Spectroscopic redshifts of the FRB host galaxies.
+    H0_arr : array_like, shape (nwalkers,)
+        Hubble constant values in cm/s/Mpc (pre-scaled) for each walker.
+    Ob0_arr : array_like, shape (nwalkers,)
+        Baryon density parameter Omega_b for each walker.
+    Om0_arr : array_like, shape (nwalkers,)
+        Total matter density parameter Omega_m for each walker.
+    s8_arr : array_like, shape (nwalkers,)
+        sigma_8 for each walker.
+    feedback_params_list : list of dict, length nwalkers
+        List of feedback parameter dictionaries, one per walker.
+    mu_host_arr : array_like, shape (nwalkers,)
+        Log-normal location parameter for the rest-frame host DM distribution,
+        i.e. the mean of log(DMhost) for each walker.
+    sigma_host_arr : array_like, shape (nwalkers,)
+        Log-normal scale parameter for the rest-frame host DM distribution,
+        i.e. the standard deviation of log(DMhost) for each walker.
+    Pk_model : str
+        Power spectrum model identifier. Must be "HMcode", "BCEmu1", "BCEmu7",
+        or "BCEmu8".
+    n_host_bins : int, optional
+        Number of bins used to numerically integrate over the host DM distribution.
+        Default is 400, sufficient for FRB samples extending to z ~ 4. For samples
+        limited to z_max ~ 1.5 or z_max ~ 3, values of 100 or 200 are sufficient.
+
+    Returns
+    -------
+    log_likelihood : np.ndarray, shape (nwalkers,)
+        Total log-likelihood summed over all FRBs, for each walker.
+    """
     # need to tune n_host_bins based on maximum frb redshift in the analysis
     # n_host_bins=100 is sufficient for z_max = 1.5
     # n_host_bins=200 is sufficient for z_max = 3
@@ -580,6 +1116,63 @@ def likelihood_frb(DM_obs, z_obs, H0_arr, Ob0_arr, Om0_arr, s8_arr, feedback_par
 
 
 def log_posterior(params_arr, dm_obs_list, z_list, Pk_model):
+    """
+    Computes the log-posterior probability for each walker, combining the FRB
+    log-likelihood with optional informative priors on the stellar-to-halo mass
+    (SHM) relation parameters.
+
+    For each walker, the feedback parameter dictionary is first populated from
+    the MCMC parameter array params_arr, with the number of free parameters
+    determined by the module-level N_params variable. Parameters not included
+    in the free parameter set are held fixed at their fiducial values, read
+    from environment variables. Cosmological parameters (H0, Ob0, Om0, s8) are
+    always fixed to their Planck18 values from environment variables.
+
+    The function supports the following model configurations:
+    - HMcode  : 1 feedback parameter (Tagn).
+    - BCEmu1  : 1 feedback parameter (log_Mc).
+    - BCEmu4  : 4 feedback parameters (log_Mc, theta_ej, mu_beta, delta).
+    - BCEmu5  : 5 feedback parameters (log_Mc, theta_ej, mu_beta, delta, eta).
+    - BCEmu7  : 7 feedback parameters (log_Mc, theta_ej, eta_delta, mu_beta,
+                gamma, delta, eta).
+    - BCEmu8  : 8 feedback parameters (log_Mc, theta_ej, eta_delta, mu_beta,
+                gamma, delta, eta, A).
+
+    In all cases, mu_host and sigma_host (the log-normal host DM distribution
+    parameters) are also free parameters included in params_arr.
+
+    An optional informative prior on the high-mass end slope of the SHM relation
+    (eta) is applied via the environment variable ETA_PRIOR, which can take values:
+    - "Chandra" : Prior from joint fit to Chandra X-ray + SDSS stellar mass
+                  measurements of galaxy clusters (Kravtsov+2014).
+    - "SPT"     : Prior from joint fit to SPT SZ + DES/WISE/Spitzer stellar mass
+                  measurements of galaxy clusters (Chiu+2018).
+    - "No"      : No informative prior on eta; flat prior only.
+
+    The eta prior is computed as the log-likelihood of the stellar mass fraction
+    data given the current model parameters, evaluated in parallel across walkers
+    using joblib. This is the physically motivated prior on the SHM relation
+    described in Extended Data Fig. 5 of the paper.
+
+    Parameters
+    ----------
+    params_arr : np.ndarray, shape (nwalkers, n_params_total)
+        Array of MCMC parameter values for each walker. The parameter ordering
+        depends on Pk_model and N_params, as described above. Always includes
+        mu_host and sigma_host as the last two columns.
+    dm_obs_list : array_like, shape (n_FRB,)
+        Observed extragalactic dispersion measures DMexgal in pc/cm^3.
+    z_list : array_like, shape (n_FRB,)
+        Spectroscopic redshifts of the FRB host galaxies.
+    Pk_model : str
+        Power spectrum model identifier. Must be "HMcode" or contain "BCEmu".
+
+    Returns
+    -------
+    log_post : np.ndarray, shape (nwalkers,)
+        Log-posterior probability for each walker, equal to the sum of the
+        FRB log-likelihood and any informative log-prior contributions.
+    """
     nwalkers = params_arr.shape[0]
     log_post = np.zeros(nwalkers)
 
@@ -779,6 +1372,30 @@ else:
 
 
 def log_prior(theta_arr, mins, maxs):
+    """
+    Computes the log-prior probability for each walker under a uniform (flat)
+    prior over the allowed parameter ranges.
+
+    For each walker, the prior is 0 (log-probability = 0.0) if all parameters
+    lie within their respective bounds [mins, maxs], and -inf otherwise. The
+    parameter bounds are defined at the module level for each model configuration
+    (HMcode, BCEmu1, BCEmu7, BCEmu8) and passed in as mins and maxs.
+
+    Parameters
+    ----------
+    theta_arr : array_like, shape (nwalkers, n_params)
+        Array of MCMC parameter values for each walker.
+    mins : array_like, shape (n_params,)
+        Lower bounds of the uniform prior for each parameter.
+    maxs : array_like, shape (n_params,)
+        Upper bounds of the uniform prior for each parameter.
+
+    Returns
+    -------
+    lp_arr : np.ndarray, shape (nwalkers,)
+        Log-prior probability for each walker. Returns 0.0 if all parameters
+        are within bounds, -inf otherwise.
+    """
     theta_arr = np.atleast_2d(theta_arr)
     valid = np.all((theta_arr >= mins) & (theta_arr <= maxs), axis=1)
     lp_arr = np.where(valid, 0.0, -np.inf)
@@ -786,6 +1403,41 @@ def log_prior(theta_arr, mins, maxs):
 
 
 def log_probability(theta_arr, dm_obs_list, z_list, Pk_model, mins, maxs):
+    """
+    Computes the log-posterior probability for each walker, combining the
+    flat log-prior with the log-posterior from log_posterior. This is the
+    top-level function called by the MCMC sampler (emcee) at each step.
+
+    The function first evaluates the flat log-prior via log_prior. Walkers
+    that fall outside the prior bounds (lp = -inf) are immediately assigned
+    log-probability of -inf without evaluating the likelihood, saving
+    computational cost. For walkers within the prior bounds, the log-posterior
+    is computed via log_posterior and added to the log-prior.
+
+    Parameters
+    ----------
+    theta_arr : array_like, shape (nwalkers, n_params)
+        Array of MCMC parameter values for each walker. The parameter ordering
+        depends on Pk_model and N_params as described in log_posterior.
+    dm_obs_list : array_like, shape (n_FRB,)
+        Observed extragalactic dispersion measures DMexgal in pc/cm^3,
+        after subtracting the Milky Way ISM contribution.
+    z_list : array_like, shape (n_FRB,)
+        Spectroscopic redshifts of the FRB host galaxies.
+    Pk_model : str
+        Power spectrum model identifier. Must be "HMcode" or contain "BCEmu".
+    mins : array_like, shape (n_params,)
+        Lower bounds of the uniform prior for each parameter.
+    maxs : array_like, shape (n_params,)
+        Upper bounds of the uniform prior for each parameter.
+
+    Returns
+    -------
+    log_prob : np.ndarray, shape (nwalkers,)
+        Log-posterior probability for each walker, equal to log_prior +
+        log_posterior for walkers within the prior bounds, and -inf for
+        walkers outside the prior bounds.
+    """
     theta_arr = np.atleast_2d(theta_arr)
     lp_arr = log_prior(theta_arr, mins, maxs)
     
