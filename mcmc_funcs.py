@@ -218,7 +218,7 @@ def rho_H2_rho_HI(z):
         The ratio rho_H2 / rho_HI at the given redshift(s), interpolated from
         the precomputed data table.
     """
-    df = pd.read_csv("/Users/krittisharma/Desktop/research/frb_cosmo/dmz_spk/dmz_spk_sharma2026/data/f_diffuse/rhoH2_rhoHI.csv")
+    df = pd.read_csv("data/f_diffuse/rhoH2_rhoHI.csv")
     return np.interp(z, df.z, df.rhoH2_rhoHI)
 
 
