@@ -32,6 +32,8 @@ Linux environment:
 
 `pip install git+https://github.com/DhayaaAnbajagane/BaryonForge.git`
 
+`pip install protobuf==6.32.0 google`
+
 **Demo**: The usage of our scripts is very well described in the jupyter notebooks, python scripts and slurm job examples, which reproduce all the figures and data presented in our work.
 
 

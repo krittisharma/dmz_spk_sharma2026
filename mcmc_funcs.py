@@ -50,18 +50,18 @@ else:
     print("Not using emulators.")
 
 # Read in the FRB sample
-# frb_sample = pd.read_csv('{}/{}.csv'.format(os.environ["DIR_PATH"], 
-                                            # os.environ["SAMPLE"]))
-# if os.environ["SAMPLE_EXTENDED"] == "Yes":
-    # frb_sample = frb_sample[np.logical_or(
-        # frb_sample["sharma_sample"] == "yes", 
-        # frb_sample["sharma_sample"] == "unclear")].reset_index()
-# else:
-    # frb_sample = frb_sample[frb_sample["sharma_sample"] == "yes"].reset_index()
-# frb_sample["DMexgal"] = [float(frb_sample["DMexgal"][i]) for i in range(len(frb_sample["DMexgal"]))]
+frb_sample = pd.read_csv('{}/{}.csv'.format(os.environ["DIR_PATH"], 
+                                            os.environ["SAMPLE"]))
+if os.environ["SAMPLE_EXTENDED"] == "Yes":
+    frb_sample = frb_sample[np.logical_or(
+        frb_sample["sharma_sample"] == "yes", 
+        frb_sample["sharma_sample"] == "unclear")].reset_index()
+else:
+    frb_sample = frb_sample[frb_sample["sharma_sample"] == "yes"].reset_index()
+frb_sample["DMexgal"] = [float(frb_sample["DMexgal"][i]) for i in range(len(frb_sample["DMexgal"]))]
 
-# dm_obs_list = np.array(list(frb_sample.DMexgal))
-# z_list = np.array(list(frb_sample.z_sample))
+dm_obs_list = np.array(list(frb_sample.DMexgal))
+z_list = np.array(list(frb_sample.z_sample))
 
 # Build age interpolator to save time during MCMC
 H0_grid = np.linspace(50, 90, 50)
