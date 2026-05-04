@@ -324,8 +324,6 @@ def DM_cosmic_mean(Om0_arr, Ob0_arr, H0_arr, s8_arr, feedback_params_list, Pk_mo
 
 
 def SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode = HMcode_mode):
-    Here's the docstring for SPk_HMcode:
-pythondef SPk_HMcode(H0, Ob0, Om0, s8, Tagn, mode=HMcode_mode):
     """
     Computes the matter power spectrum suppression ratio P_hydro(k) / P_gravity(k) at z=0
     using the HMcode (Mead+2020) baryonic feedback prescription, for a single set of
@@ -481,8 +479,6 @@ def Pgas_HMcode(H0, Ob0, Om0, s8, Tagn, z_arr, mode = HMcode_mode):
 
 
 def SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
-    Here's the docstring for SPk_BCEmu:
-pythondef SPk_BCEmu(H0, Ob0, Om0, s8, feedback_params, m_nu=0, w0=-1, wa=0):
     """
     Computes the matter power spectrum suppression ratio P_hydro(k) / P_gravity(k) at z=0
     using the flexible analytical BCEMU (Schneider+2019) baryonic feedback prescription,
