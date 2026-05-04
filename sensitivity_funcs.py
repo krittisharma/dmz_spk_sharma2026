@@ -18,8 +18,6 @@ G = con.G.cgs.value; m_p = con.m_p.cgs.value; pc = con.pc.cgs.value; Mpc = 1e6*p
 f_d = 0.9; chi_e = 1 - (0.2453 / 2)
 
 class CosmologyCalculator:
-    Here's the docstring for the CosmologyCalculator class and its methods:
-pythonclass CosmologyCalculator:
     """
     A helper class for basic cosmological calculations used in the sensitivity
     analysis of baryon probes and FRB observables.
