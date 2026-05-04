@@ -12,7 +12,7 @@ This repository hosts code and data associated with the publication Sharma et al
 
 **OS Requirements**: The jupyter notebooks contained in this repository were run on `macOS: Sonoma 14.5` and the MCMC inference was conducted on `linux: Red Hat Enterprise Linux 9.3 (Plow)`. The jupyter notebooks require a standard computer with enough RAM to support the in-memory operations. The recommended resources for MCMC inference on linux include a single computer node with 12 CPU cores and 192 GB memory. In principle, MCMC pipeline is also suitable for running on a standard computer with longer run times without parallelization on an HPC.
 
-**Installation/Python Environment**: Upon cloning the git repository using `git clone https://github.com/krittisharma/dmz_spk_sharma2026`, the user can set up the environments for the two aforementioned OS, as follows. This process should not take more than 10 minutes.
+**Installation/Python Environment**: Upon cloning the git repository using `git clone https://github.com/krittisharma/dmz_spk_sharma2026`, the user can set up the environments for the two aforementioned OS, as follows. This process should not take more than 10 minutes. Note that the MacOS environment is to run jupyter notebooks. To conduct inference using slurm jobs, use the Linux environment.
 
 MacOS environment:
 
