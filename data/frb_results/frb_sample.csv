@@ -113,14 +113,14 @@ FRB 20181112A,327.349,-52.971,0.8862,589.27,41.73,0.4755,547.54,ASKAP,"Prochaska
 FRB 20220330D,163.751,70.351,0.6300,468.10,38.65,0.3714,429.45,DSA-110,"Connor+2025, Sharma+2024",yes,yes,no,Insecure host association.,spec,136.009,43.702
 FRB 20220208A,322.575,70.041,0.5600,437.00,101.64,0.3510,335.36,DSA-110,"Connor+2025, Sharma+2024",yes,yes,no,Insecure host association.,spec,107.262,13.561
 FRB 20230808F,53.304,-51.935,0.5900,653.20,35.38,0.3472,617.82,MeerKAT,Hanmer+2025,yes,no,no,Insecure host association.,spec,263.522,-50.950
-FRB 20220831A,338.696,70.538,0.9980,1146.25,126.72,0.2620,1019.53,DSA-110,Connor+2025,no,no,no,Evidence for excess DM_host,spec,111.958,10.637
-FRB 20190520B,240.518,-11.288,0.9984,1210.30,60.09,0.2410,1150.21,FAST,"Gordon+2023, Niu+2022",no,no,no,Evidence for excess DM_host,spec,359.673,29.907
+FRB 20220831A,338.696,70.538,0.9980,1146.25,126.72,0.2620,1019.53,DSA-110,Connor+2025,no,no,yes,Evidence for excess DM_host,spec,111.958,10.637
+FRB 20190520B,240.518,-11.288,0.9984,1210.30,60.09,0.2410,1150.21,FAST,"Gordon+2023, Niu+2022",no,no,yes,Evidence for excess DM_host,spec,359.673,29.907
 FRB 20221027A,130.872,72.101,0.6160,452.50,47.16,0.2290,405.34,DSA-110,"Connor+2025, Sharma+2024",yes,yes,no,Insecure host association.,spec,142.088,34.221
-FRB 20210117A,339.979,-16.151,1.0000,728.95,34.26,0.2140,694.69,ASKAP,"Bhandari+2023, Gordon+2023, Shannon+2024",yes,yes,no,Evidence for excess DM_host,spec,45.918,-57.647
+FRB 20210117A,339.979,-16.151,1.0000,728.95,34.26,0.2140,694.69,ASKAP,"Bhandari+2023, Gordon+2023, Shannon+2024",yes,yes,yes,Evidence for excess DM_host,spec,45.918,-57.647
 FRB 20230311A,91.110,55.946,0.7740,364.30,92.39,0.1918,271.91,CHIME,CHIME/FRB Collaboration+2025,yes,no,no,Insecure host association. Arcmin-localization.,spec,157.713,16.040
-FRB 20240114A,321.916,4.329,0.9974,527.70,49.58,0.1300,478.12,"CHIME, VLBI","Chen+2025, Bruni+2024",yes,no,no,Evidence for excess DM_host,spec,57.481,-31.651
+FRB 20240114A,321.916,4.329,0.9974,527.70,49.58,0.1300,478.12,"CHIME, VLBI","Chen+2025, Bruni+2024",yes,no,yes,Evidence for excess DM_host,spec,57.481,-31.651
 FRB 20190110C,249.318,41.443,0.7790,221.60,36.97,0.1224,184.63,CHIME,Ibik+2024,yes,no,no,Insecure host association. Arcmin-localization.,spec,65.573,42.100
-FRB 20230708A,303.116,-55.356,1.0000,411.51,60.33,0.1050,351.18,ASKAP,"Shannon+2025, Muller+2025",yes,no,no,Evidence for excess DM_host,spec,342.629,-33.388
+FRB 20230708A,303.116,-55.356,1.0000,411.51,60.33,0.1050,351.18,ASKAP,"Shannon+2025, Muller+2025",yes,no,yes,Evidence for excess DM_host,spec,342.629,-33.388
 FRB 20210405I,255.340,-49.545,0.9975,565.17,516.42,0.0660,48.75,MeerKAT,Driessen+2024,no,no,no,DM_exgal < DM_MW_halo!,spec,338.192,-4.597
 FRB 20230718A,128.162,-40.452,0.9400,476.67,423.71,0.0350,52.96,ASKAP,Glowacki+2024,no,no,no,DM_exgal ~ DM_MW_halo!,spec,259.463,-0.367
 FRB 20190425A,255.662,21.577,0.7870,128.20,48.72,0.0312,79.48,CHIME,"Da-Chun+2025, Panther+2023",no,no,no,Insecure host association.,spec,42.100,33.090
