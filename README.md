@@ -127,9 +127,9 @@ Here,
 
 This script should generate the following files: `data/frb_results/emcee_BCEmu5_extended_Chandraprior.pkl`, `data/frb_results/spk_BCEmu5_extended_Chandraprior.npy` and `data/frb_results/spk_BCEmu5_posterior_samples_feedbackonly_extended_Chandraprior.npy`. Using these, `spk_fgas_profile.ipynb` notebook presents the comparison with various literature constraints and produces the following plots:
 
-<img width="2723" height="916" alt="image" src="https://github.com/user-attachments/assets/4ae90cac-3035-41c1-be98-364a0da14bc7" />
+<img width="2714" height="919" alt="image" src="https://github.com/user-attachments/assets/85d09757-bac2-4a4d-ae90-5756557133ed" />
+<img width="2815" height="1093" alt="image" src="https://github.com/user-attachments/assets/c7844e28-b901-4c95-ba21-c9e10899be98" />
 
-<img width="2804" height="1012" alt="image" src="https://github.com/user-attachments/assets/058df25c-1c83-4431-b8c8-8b05bed7f183" />
 
 
 ## License
