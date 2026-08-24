@@ -3,6 +3,7 @@ from astropy import constants as con
 from scipy.integrate import trapezoid
 import pyccl as ccl
 import glob
+import BaryonForge as bfg
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -210,9 +211,6 @@ class SourceDistribution:
     Nfrb : int, optional
         Total number of FRBs in the survey, used to normalize the 3D FRB
         number density n3d_frb. Default is 100.
-    omega_sky : float, optional
-        Sky fraction covered by the survey, used to normalize the 3D galaxy
-        and FRB number densities. Default is 0.1.
     Ngal1 : float, optional
         Total number of galaxies in the first lens tomographic bin, used to
         normalize n3d_g1. Default is 1e8.
@@ -242,7 +240,7 @@ class SourceDistribution:
 
     def __init__(self, cosmo_calc, nz_file_k, nz_file_g, nz_file_f=None, 
                  zmin=1e-4, zmax=3.0, zbin_k_idx1=4, zbin_k_idx2=4, zbin_g_idx1=1, zbin_g_idx2=1, 
-                 Nfrb=100, omega_sky=0.1, Ngal1=1e8, Ngal2=1e8):
+                 n2d_mean_frb=0.00014, n2d_mean_g1=3.592707, n2d_mean_g2=2.252406):
         self.cosmo = cosmo_calc
         self.zmin = zmin
         self.zmax = zmax
@@ -252,10 +250,9 @@ class SourceDistribution:
         self.zbin_g_idx2 = zbin_g_idx2
         self.z_grid = np.linspace(zmin, zmax, 1000)
         
-        self.Nfrb = Nfrb
-        self.Ngal1 = Ngal1
-        self.Ngal2 = Ngal2
-        self.omega_sky = omega_sky
+        self.n2d_mean_frb = n2d_mean_frb*((180*60/3.14)**2)
+        self.n2d_mean_g1 = n2d_mean_g1*((180*60/3.14)**2)
+        self.n2d_mean_g2 = n2d_mean_g2*((180*60/3.14)**2)
 
         self._load_nz(nz_file_k, nz_file_g, nz_file_f)
         self._compute_W_z()
@@ -310,23 +307,13 @@ class SourceDistribution:
         self.dn2d_dz_g1 = np.interp(self.z_grid, zbins, data[:, self.zbin_g_idx1])
         self.dn2d_dz_g1 = np.clip(self.dn2d_dz_g1, 0.0, None)
         self.dn2d_dz_g1 /= trapezoid(self.dn2d_dz_g1, self.z_grid)
-        self.n3d_g1 = (self.Hz / (self.cosmo.c * self.chi**2)) * self.dn2d_dz_g1
-        norm = trapezoid(self.n3d_g1 * (self.chi**2) * (self.omega_sky) * self.cosmo.c / self.Hz, self.z_grid)
-        self.n3d_g1 *= self.Ngal1 / norm
         
         self.dn2d_dz_g2 = np.interp(self.z_grid, zbins, data[:, self.zbin_g_idx2])
         self.dn2d_dz_g2 = np.clip(self.dn2d_dz_g2, 0.0, None)
         self.dn2d_dz_g2 /= trapezoid(self.dn2d_dz_g2, self.z_grid)
-        self.n3d_g2 = (self.Hz / (self.cosmo.c * self.chi**2)) * self.dn2d_dz_g2
-        norm = trapezoid(self.n3d_g2 * (self.chi**2) * (self.omega_sky) * self.cosmo.c / self.Hz, self.z_grid)
-        self.n3d_g2 *= self.Ngal2 / norm
         
         self.dn2d_dz_frb = (self.z_grid**2)*np.exp(-3.5*self.z_grid)
         self.dn2d_dz_frb /= trapezoid(self.dn2d_dz_frb, self.z_grid)
-        
-        self.n3d_frb = (self.Hz / (self.cosmo.c * self.chi**2)) * self.dn2d_dz_frb
-        norm = trapezoid(self.n3d_frb * (self.chi**2) * (self.omega_sky) * self.cosmo.c / self.Hz, self.z_grid)
-        self.n3d_frb *= self.Nfrb / norm
 
 
     def _compute_W_z(self):
@@ -416,25 +403,37 @@ class SourceDistribution:
         
         self.W_k_CMB_wt = prefactor * (chi_CMB - chi)/chi_CMB
 
-        W_g_wt_z = self.n3d_g1 * chi**2 * self.cosmo.c / (Hz * (1 + z))
-        self.n2d_mean_g1 = trapezoid(W_g_wt_z, z)
-        W_g_wt_z /= self.n2d_mean_g1
-        self.W_g_wt1 = W_g_wt_z * Hz / self.cosmo.c
-        
-        W_g_wt_z = self.n3d_g2 * chi**2 * self.cosmo.c / (Hz * (1 + z))
-        self.n2d_mean_g2 = trapezoid(W_g_wt_z, z)
-        W_g_wt_z /= self.n2d_mean_g2
-        self.W_g_wt2 = W_g_wt_z * Hz / self.cosmo.c
-        
-        self.W_frb_wt_z = self.n3d_frb * chi**2 * self.cosmo.c / (Hz * (1 + z))
-        self.n2d_mean_frb = trapezoid(self.W_frb_wt_z, z)
-        self.W_frb_wt_z /= self.n2d_mean_frb
+        # W_g_wt_z = self.n3d_g1 * chi**2 * self.cosmo.c / (Hz * (1 + z))
+        # self.n2d_mean_g1 = trapezoid(W_g_wt_z, z)
+        # W_g_wt_z /= self.n2d_mean_g1
+        # self.W_g_wt1 = W_g_wt_z * Hz / self.cosmo.c
+        # 
+        # W_g_wt_z = self.n3d_g2 * chi**2 * self.cosmo.c / (Hz * (1 + z))
+        # self.n2d_mean_g2 = trapezoid(W_g_wt_z, z)
+        # W_g_wt_z /= self.n2d_mean_g2
+        # self.W_g_wt2 = W_g_wt_z * Hz / self.cosmo.c
 
+        self.W_g_wt1 = self.dn2d_dz_g1 * Hz / self.cosmo.c
+        self.W_g_wt2 = self.dn2d_dz_g2 * Hz / self.cosmo.c
+        
+        # self.W_frb_wt_z = self.n3d_frb * chi**2 * self.cosmo.c / (Hz * (1 + z))
+        # self.n2d_mean_frb = trapezoid(self.W_frb_wt_z, z)
+        # self.W_frb_wt_z /= self.n2d_mean_frb
+
+        # dDM_dz = self.cosmo.dDM_dz(z)
+        # valid_mask = (z[:, None] >= z) & (z[:, None] <= self.zmax)
+        # masked_integrand = np.where(valid_mask, self.W_frb_wt_z[:, None], 0)
+        # W_frb_int = trapezoid(masked_integrand, z, axis=0)
+        # self.W_DM_wt = dDM_dz * W_frb_int * Hz / self.cosmo.c
+        self.W_frb_wt_z = self.dn2d_dz_frb * Hz / self.cosmo.c
         dDM_dz = self.cosmo.dDM_dz(z)
-        valid_mask = (z[:, None] >= z) & (z[:, None] <= self.zmax)
-        masked_integrand = np.where(valid_mask, self.W_frb_wt_z[:, None], 0)
-        W_frb_int = trapezoid(masked_integrand, z, axis=0)
-        self.W_DM_wt = dDM_dz * W_frb_int * Hz / self.cosmo.c
+        valid_mask = z[:,None] >= z[None,:]
+        W_frb_int = trapezoid(
+            np.where(valid_mask, self.dn2d_dz_frb[:,None], 0),
+            z,
+            axis=0
+        )
+        self.W_DM_wt = dDM_dz * (Hz/self.cosmo.c) * W_frb_int
 
 
 class HMCalculator_NoCorrection(ccl.halos.halo_model.HMCalculator):
@@ -519,6 +518,10 @@ def power_spectra(cosmo, log10M_max):
         One-halo matter auto power spectrum at each redshift.
     """
     P_gm, P_gg, P_mm = [], [], []
+    mass_def=ccl.halos.massdef.MassDef200c
+    c_M_relation = ccl.halos.concentration.ConcentrationDiemer15
+    fft_precision = dict(padding_lo_fftlog = 1e-8, padding_hi_fftlog = 1e8, n_per_decade = 100)
+    k_fields = np.geomspace(1e-4, 1e6, 1000)
     
     for j in range(len(redshifts)):
         rho  = ccl.rho_x(cosmo, 1/(1+redshifts[j]), 'matter', is_comoving = True)
